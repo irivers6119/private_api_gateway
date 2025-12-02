@@ -12,11 +12,33 @@ NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== Private API Gateway EC2 Test Script ===${NC}\n"
 
-# Configuration - Update these values
-API_ID="609x52qn26"
-VPCE_ENDPOINT_ID="vpce-0df7e09a0bc49a117"
-REGION="us-east-1"
-STAGE="dev"
+# Configuration
+# You can override via env vars: API_ID, VPCE_ENDPOINT_ID, REGION, STAGE, STACK_NAME
+REGION="${REGION:-us-east-1}"
+STAGE="${STAGE:-dev}"
+STACK_NAME="${STACK_NAME:-weather-api-private-dev}"
+
+# Auto-discover API ID and VPCE ID from CloudFormation if not provided
+if command -v aws >/dev/null 2>&1; then
+  if [ -z "$API_ID" ] || [ "$API_ID" = "REPLACE_ME" ]; then
+    API_ID=$(aws cloudformation describe-stacks \
+      --region "$REGION" \
+      --stack-name "$STACK_NAME" \
+      --query "Stacks[0].Outputs[?OutputKey=='ApiId'].OutputValue" \
+      --output text 2>/dev/null)
+  fi
+  if [ -z "$VPCE_ENDPOINT_ID" ] || [ "$VPCE_ENDPOINT_ID" = "REPLACE_ME" ]; then
+    VPCE_ENDPOINT_ID=$(aws cloudformation describe-stacks \
+      --region "$REGION" \
+      --stack-name "$STACK_NAME" \
+      --query "Stacks[0].Outputs[?OutputKey=='VpcEndpointId'].OutputValue" \
+      --output text 2>/dev/null)
+  fi
+fi
+
+# Fallback defaults (only used if discovery failed and vars not provided)
+API_ID="${API_ID:-609x52qn26}"
+VPCE_ENDPOINT_ID="${VPCE_ENDPOINT_ID:-vpce-0df7e09a0bc49a117}"
 
 echo -e "${GREEN}Configuration:${NC}"
 echo -e "  API ID: ${API_ID}"

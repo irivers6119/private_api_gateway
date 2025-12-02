@@ -17,7 +17,16 @@ provider:
         - ApiGatewayVpcEndpoint
         - Id
   apiGateway:
-    # resourcePolicy temporarily removed to validate access via vpcEndpointIds only
+    resourcePolicy:
+      - Effect: Allow
+        Principal: '*'
+        Action: execute-api:Invoke
+        Resource:
+          - Fn::Sub: arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/*/*/*
+        Condition:
+          StringEquals:
+            aws:SourceVpce:
+              Ref: ApiGatewayVpcEndpoint
   iam:
     role:
       statements:
