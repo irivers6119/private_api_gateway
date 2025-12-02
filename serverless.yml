@@ -44,7 +44,6 @@ functions:
       - http:
           path: weather
           method: get
-          private: true
           request:
             parameters:
               querystrings:
