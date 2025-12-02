@@ -3,8 +3,6 @@
 # EC2 Test script for private API Gateway
 # This script should be run from an EC2 instance in the VPC
 
-set -e
-
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -16,13 +14,13 @@ echo -e "${BLUE}=== Private API Gateway EC2 Test Script ===${NC}\n"
 
 # Configuration - Update these values
 API_ID="609x52qn26"
-VPC_ENDPOINT_ID="vpce-0df7e09a0bc49a117"
+VPCE_ENDPOINT_ID="vpce-0df7e09a0bc49a117"
 REGION="us-east-1"
 STAGE="dev"
 
 echo -e "${GREEN}Configuration:${NC}"
 echo -e "  API ID: ${API_ID}"
-echo -e "  VPC Endpoint: ${VPC_ENDPOINT_ID}"
+echo -e "  VPC Endpoint: ${VPCE_ENDPOINT_ID}"
 echo -e "  Region: ${REGION}"
 echo ""
 
