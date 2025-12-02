@@ -1,0 +1,26 @@
+{
+  "name": "weather-api-private",
+  "version": "1.0.0",
+  "description": "Private API Gateway with VPC endpoint for Weather API proxy",
+  "main": "handler.js",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "remove": "serverless remove",
+    "logs": "serverless logs -f weatherProxy -t",
+    "info": "serverless info"
+  },
+  "keywords": [
+    "serverless",
+    "aws",
+    "lambda",
+    "api-gateway",
+    "vpc",
+    "private-api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-dotenv-plugin": "^6.0.0"
+  }
+}

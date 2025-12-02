@@ -1,0 +1,316 @@
+service: weather-api-private
+
+frameworkVersion: '3'
+
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  environment:
+    WEATHER_API_KEY: ${env:WEATHER_API_KEY}
+  endpointType: PRIVATE
+  vpcEndpointIds:
+    - Fn::GetAtt:
+        - ApiGatewayVpcEndpoint
+        - Id
+  apiGateway:
+    resourcePolicy:
+      - Effect: Deny
+        Principal: '*'
+        Action: execute-api:Invoke
+        Resource:
+          - execute-api:/*
+        Condition:
+          StringNotEquals:
+            aws:SourceVpce:
+              Ref: ApiGatewayVpcEndpoint
+      - Effect: Allow
+        Principal: '*'
+        Action: execute-api:Invoke
+        Resource:
+          - execute-api:/*
+        Condition:
+          StringEquals:
+            aws:SourceVpce:
+              Ref: ApiGatewayVpcEndpoint
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - ec2:CreateNetworkInterface
+            - ec2:DescribeNetworkInterfaces
+            - ec2:DeleteNetworkInterface
+          Resource: '*'
+
+functions:
+  weatherProxy:
+    handler: handler.getWeather
+    events:
+      - http:
+          path: weather
+          method: get
+          private: true
+          request:
+            parameters:
+              querystrings:
+                q: true
+                lang: false
+    vpc:
+      securityGroupIds:
+        - Ref: LambdaSecurityGroup
+      subnetIds:
+        - Ref: PrivateSubnet
+
+resources:
+  Resources:
+    # VPC
+    VPC:
+      Type: AWS::EC2::VPC
+      Properties:
+        CidrBlock: 10.0.0.0/16
+        EnableDnsHostnames: true
+        EnableDnsSupport: true
+        Tags:
+          - Key: Name
+            Value: ${self:service}-vpc
+
+    # Private Subnet
+    PrivateSubnet:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId:
+          Ref: VPC
+        CidrBlock: 10.0.1.0/24
+        AvailabilityZone: ${self:provider.region}a
+        Tags:
+          - Key: Name
+            Value: ${self:service}-private-subnet
+
+    # Internet Gateway for NAT
+    InternetGateway:
+      Type: AWS::EC2::InternetGateway
+      Properties:
+        Tags:
+          - Key: Name
+            Value: ${self:service}-igw
+
+    AttachGateway:
+      Type: AWS::EC2::VPCGatewayAttachment
+      Properties:
+        VpcId:
+          Ref: VPC
+        InternetGatewayId:
+          Ref: InternetGateway
+
+    # Public Subnet for NAT Gateway
+    PublicSubnet:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId:
+          Ref: VPC
+        CidrBlock: 10.0.2.0/24
+        AvailabilityZone: ${self:provider.region}a
+        MapPublicIpOnLaunch: true
+        Tags:
+          - Key: Name
+            Value: ${self:service}-public-subnet
+
+    # Elastic IP for NAT Gateway
+    NatEIP:
+      Type: AWS::EC2::EIP
+      DependsOn: AttachGateway
+      Properties:
+        Domain: vpc
+
+    # NAT Gateway
+    NatGateway:
+      Type: AWS::EC2::NatGateway
+      Properties:
+        AllocationId:
+          Fn::GetAtt:
+            - NatEIP
+            - AllocationId
+        SubnetId:
+          Ref: PublicSubnet
+        Tags:
+          - Key: Name
+            Value: ${self:service}-nat
+
+    # Route Table for Private Subnet
+    PrivateRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId:
+          Ref: VPC
+        Tags:
+          - Key: Name
+            Value: ${self:service}-private-rt
+
+    PrivateRoute:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId:
+          Ref: PrivateRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        NatGatewayId:
+          Ref: NatGateway
+
+    PrivateSubnetRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId:
+          Ref: PrivateSubnet
+        RouteTableId:
+          Ref: PrivateRouteTable
+
+    # Route Table for Public Subnet
+    PublicRouteTable:
+      Type: AWS::EC2::RouteTable
+      Properties:
+        VpcId:
+          Ref: VPC
+        Tags:
+          - Key: Name
+            Value: ${self:service}-public-rt
+
+    PublicRoute:
+      Type: AWS::EC2::Route
+      Properties:
+        RouteTableId:
+          Ref: PublicRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId:
+          Ref: InternetGateway
+
+    PublicSubnetRouteTableAssociation:
+      Type: AWS::EC2::SubnetRouteTableAssociation
+      Properties:
+        SubnetId:
+          Ref: PublicSubnet
+        RouteTableId:
+          Ref: PublicRouteTable
+
+    # Security Group for Lambda
+    LambdaSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Security group for Weather Lambda function
+        VpcId:
+          Ref: VPC
+        SecurityGroupEgress:
+          - IpProtocol: -1
+            CidrIp: 0.0.0.0/0
+        Tags:
+          - Key: Name
+            Value: ${self:service}-lambda-sg
+
+    # VPC Endpoint for API Gateway
+    ApiGatewayVpcEndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcId:
+          Ref: VPC
+        ServiceName: com.amazonaws.${self:provider.region}.execute-api
+        VpcEndpointType: Interface
+        PrivateDnsEnabled: true
+        SubnetIds:
+          - Ref: PrivateSubnet
+        SecurityGroupIds:
+          - Ref: VpcEndpointSecurityGroup
+
+    # Security Group for VPC Endpoint
+    VpcEndpointSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Security group for API Gateway VPC Endpoint
+        VpcId:
+          Ref: VPC
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: 443
+            ToPort: 443
+            CidrIp: 10.0.0.0/16
+        Tags:
+          - Key: Name
+            Value: ${self:service}-vpce-sg
+
+    # VPC Endpoints for Systems Manager (for EC2 SSM connectivity)
+    SSMVpcEndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcId:
+          Ref: VPC
+        ServiceName: com.amazonaws.${self:provider.region}.ssm
+        VpcEndpointType: Interface
+        PrivateDnsEnabled: true
+        SubnetIds:
+          - Ref: PrivateSubnet
+        SecurityGroupIds:
+          - Ref: VpcEndpointSecurityGroup
+
+    SSMMessagesVpcEndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcId:
+          Ref: VPC
+        ServiceName: com.amazonaws.${self:provider.region}.ssmmessages
+        VpcEndpointType: Interface
+        PrivateDnsEnabled: true
+        SubnetIds:
+          - Ref: PrivateSubnet
+        SecurityGroupIds:
+          - Ref: VpcEndpointSecurityGroup
+
+    EC2MessagesVpcEndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcId:
+          Ref: VPC
+        ServiceName: com.amazonaws.${self:provider.region}.ec2messages
+        VpcEndpointType: Interface
+        PrivateDnsEnabled: true
+        SubnetIds:
+          - Ref: PrivateSubnet
+        SecurityGroupIds:
+          - Ref: VpcEndpointSecurityGroup
+
+  Outputs:
+    VpcId:
+      Description: VPC ID
+      Value:
+        Ref: VPC
+      Export:
+        Name: ${self:service}-VpcId
+
+    PrivateSubnetId:
+      Description: Private Subnet ID
+      Value:
+        Ref: PrivateSubnet
+      Export:
+        Name: ${self:service}-PrivateSubnetId
+
+    VpcEndpointId:
+      Description: VPC Endpoint ID
+      Value:
+        Ref: ApiGatewayVpcEndpoint
+      Export:
+        Name: ${self:service}-VpcEndpointId
+
+    ApiEndpoint:
+      Description: API Gateway Endpoint
+      Value:
+        Fn::Sub: 'https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:provider.stage}'
+
+    ApiId:
+      Description: API Gateway ID
+      Value:
+        Ref: ApiGatewayRestApi
+      Export:
+        Name: ${self:service}-ApiId
+
+plugins:
+  - serverless-dotenv-plugin

@@ -1,0 +1,36 @@
+# Package directories
+node_modules/
+package-lock.json
+yarn.lock
+
+# Serverless directories
+.serverless/
+.serverless_plugins/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Exclude private test scripts
+test-private-api.sh
+
+# AWS
+.aws/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
