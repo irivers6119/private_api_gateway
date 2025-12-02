@@ -29,7 +29,20 @@ The diagram below illustrates how traffic flows when using a **Private API Gatew
 - Use **resource policies** on API Gateway to restrict access to your VPC endpoint.
 - Apply **security groups** to the VPC endpoint ENIs for fine-grained control.
 
+# When to Use DNS Private Hosted Zone vs VPC Endpoint Default Domain
+✅ Use a Private Hosted Zone When:
 
+You want a custom domain name (e.g., internal-api.mycompany.local) for your private API Gateway.
+You need friendly DNS names for internal services instead of the default execute-api domain.
+Your architecture requires internal DNS resolution for multiple VPCs or hybrid environments.
+
+❌ It’s OK to Use the Default Domain When:
+
+You are fine using the AWS-provided domain (e.g., https://<api-id>.execute-api.<region>.amazonaws.com).
+All traffic originates within the same VPC through the VPC endpoint.
+You do not need custom branding or simplified DNS names.
+
+Summary: Private Hosted Zone is optional and mainly for convenience and custom naming. The default domain works perfectly for internal-only traffic via VPC endpoints.
 
 ## Prerequisites
 
