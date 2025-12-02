@@ -24,10 +24,11 @@ echo -e "  VPC Endpoint: ${VPCE_ENDPOINT_ID}"
 echo -e "  Region: ${REGION}"
 echo ""
 
-# Construct the API endpoint URL using VPC Endpoint DNS
-API_URL="https://${API_ID}-${VPC_ENDPOINT_ID}.execute-api.${REGION}.vpce.amazonaws.com/${STAGE}/weather"
+# Construct the API endpoint URL using regional endpoint (resolves to VPC endpoint via Private DNS)
+API_URL="https://${API_ID}.execute-api.${REGION}.amazonaws.com/${STAGE}/weather"
 
 echo -e "${YELLOW}API Endpoint:${NC} $API_URL"
+echo -e "${YELLOW}Note:${NC} This resolves to VPC endpoint ${VPCE_ENDPOINT_ID} via Private DNS"
 echo ""
 
 # Test 1: Basic weather request with zip code
