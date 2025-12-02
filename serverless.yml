@@ -17,16 +17,7 @@ provider:
         - ApiGatewayVpcEndpoint
         - Id
   apiGateway:
-    resourcePolicy:
-      - Effect: Allow
-        Principal: '*'
-        Action: execute-api:Invoke
-        Resource:
-          - execute-api:/*
-        Condition:
-          StringEquals:
-            aws:SourceVpc:
-              Ref: VPC
+    # resourcePolicy temporarily removed to validate access via vpcEndpointIds only
   iam:
     role:
       statements:
