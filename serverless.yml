@@ -22,7 +22,7 @@ provider:
         Principal: '*'
         Action: execute-api:Invoke
         Resource:
-          - Fn::Sub: arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGatewayRestApi}/*/*/*
+          - execute-api:/*
         Condition:
           StringEquals:
             aws:SourceVpce:
