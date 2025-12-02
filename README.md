@@ -20,7 +20,7 @@ The diagram below illustrates how traffic flows when using a **Private API Gatew
 - The **Interface VPC Endpoint** creates ENIs in the subnets you select (one per subnet).
 - Traffic flows through these ENIs to the **Private API Gateway**, staying inside the VPC and AWS private network.
 - No public internet is involved.
-
+![Private API Gateway Diagram](7c3726c076.png)
 ### IP Usage Details
 - Each VPC Endpoint ENI consumes **1 IP address** from its associated subnet.
 - API Gateway itself does **not** consume IPs from your subnets.
